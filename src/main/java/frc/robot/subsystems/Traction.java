@@ -1,26 +1,34 @@
 package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.ResetMode;
 import com.revrobotics.PersistMode;
+import frc.robot.Controller;
 
 public class Traction extends SubsystemBase{
-    private final SparkMax Rightfront = new SparkMax(1,MotorType.kBrushed);
+
+    Controller controle = new Controller();
+
+    private final SparkMax Rightfront = new SparkMax(4,MotorType.kBrushed);
     private final SparkMax Leftfront = new SparkMax(2, MotorType.kBrushed);
 
     public final SparkMax Rightback = new SparkMax(3,MotorType.kBrushed);
-    public final SparkMax Leftback = new SparkMax(4, MotorType.kBrushed);
+    public final SparkMax Leftback = new SparkMax(1, MotorType.kBrushed);
 
     public final DifferentialDrive drive;
+
+    private static final double VELOCIDADE_NORMAL = 0.7;
+    private static final double VELOCIDADE_TURBO = 0.9;
 
     public Traction() {
         SparkMaxConfig RightConfig = new SparkMaxConfig ();
         SparkMaxConfig LeftConfig = new SparkMaxConfig();
-
 
         SparkMaxConfig RightBackConfig = new SparkMaxConfig ();
         RightBackConfig.follow(Rightfront);
@@ -40,15 +48,36 @@ public class Traction extends SubsystemBase{
         //Para o sistema controlar a corrente e tensão e caso de segurança se travar ou o sistema não receptar ou transmitir dados
         drive = new DifferentialDrive(Leftfront, Rightfront);
         
-        drive.setMaxOutput(0.7);
+        drive.setMaxOutput(VELOCIDADE_NORMAL);
     }
 
     public void arcadeDrive(double forward, double rotation) {
         drive.arcadeDrive(forward, rotation);
     }
 
+    //Turbo ligado: velocidade máxima 0.9, desligado: volta para 0.7
+    public void setTurbo(boolean ligado) {
+        drive.setMaxOutput(ligado ? VELOCIDADE_TURBO : VELOCIDADE_NORMAL);
+    }
+
+    //Usado no autônomo: os motores recebem exatamente essa velocidade.
+    //O arcadeDrive eleva ao quadrado e aplica o limite de 0.7, então 0.5 viraria só 0.5 * 0.5 * 0.7 = 0.175
+    public void andarDireto(double velocidade) {
+        Leftfront.set(velocidade);
+        Rightfront.set(velocidade);
+        drive.feed(); //avisa a segurança do DifferentialDrive que a tração está sendo controlada
+    }
+
     public void StopTraction(){
         drive.stopMotor();
     }
+
+    public void control() {
+    boolean turbo = controle.turboApertado();
+    SmartDashboard.putBoolean("turbo", turbo);
+
+    setTurbo(turbo);
+    arcadeDrive(controle.andarReto(), controle.virar());
+  }
 
 }
